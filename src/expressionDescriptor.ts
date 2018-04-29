@@ -53,15 +53,18 @@ export class ExpressionDescriptor {
     return descripter.getFullDescription();
   }
 
-  static parseContext = {};
+  static parseContext = {
+    segments: [],
+    isSegmentError: []
+  };
 
   // toString + segment start/end + segment error
   static parse(expression: string,
                {
                  throwExceptionOnParseError = true,
-                 verbose = false,
+                 verbose = true,
                  dayOfWeekStartIndexZero = true,
-                 use24HourTimeFormat,
+                 use24HourTimeFormat = true,
                  locale = "en"
                }: Options = {}): any {
 
@@ -124,7 +127,9 @@ export class ExpressionDescriptor {
 
       description += timeSegment + dayOfMonthDesc + dayOfWeekDesc + monthDesc + yearDesc;
       description = this.transformVerbosity(description, this.options.verbose);
-
+      ExpressionDescriptor.parseContext.segments[2] = dayOfMonthDesc;
+      ExpressionDescriptor.parseContext.segments[3] = monthDesc;
+      ExpressionDescriptor.parseContext.segments[4] = dayOfWeekDesc;
       // uppercase first character
       description = description.charAt(0).toLocaleUpperCase() + description.substr(1);
     } catch (ex) {
@@ -152,6 +157,8 @@ export class ExpressionDescriptor {
     ) {
       //specific time of day (i.e. 10 14)
       description += this.i18n.atSpace() + this.formatTime(hourExpression, minuteExpression, secondsExpression);
+      ExpressionDescriptor.parseContext.segments[0] = ExpressionDescriptor.formatTimeContext.minute;
+      ExpressionDescriptor.parseContext.segments[1] = ExpressionDescriptor.formatTimeContext.hour;
     } else if (
       minuteExpression.indexOf("-") > -1 &&
       !(minuteExpression.indexOf(",") > -1) &&
@@ -159,11 +166,13 @@ export class ExpressionDescriptor {
     ) {
       //minute range in single hour (i.e. 0-10 11)
       let minuteParts: string[] = minuteExpression.split("-");
-      description += StringUtilities.format(
+      let segment = StringUtilities.format(
         this.i18n.everyMinutebetweenX0AndX1(),
         this.formatTime(hourExpression, minuteParts[0], ""),
         this.formatTime(hourExpression, minuteParts[1], "")
       );
+      description += segment;
+      ExpressionDescriptor.parseContext.segments[0] = segment;
     } else if (
       hourExpression.indexOf(",") > -1 &&
       hourExpression.indexOf("-") == -1 && hourExpression.indexOf("/") == -1 &&
@@ -172,19 +181,23 @@ export class ExpressionDescriptor {
       //hours list with single minute (i.e. 30 6,14,16)
       let hourParts: string[] = hourExpression.split(",");
       description += this.i18n.at();
+      let segment = "";
 
       for (let i = 0; i < hourParts.length; i++) {
-        description += " ";
-        description += this.formatTime(hourParts[i], minuteExpression, "");
+        segment += " ";
+        segment += this.formatTime(hourParts[i], minuteExpression, "");
 
         if (i < hourParts.length - 2) {
-          description += ",";
+          segment += ",";
         }
 
         if (i == hourParts.length - 2) {
-          description += this.i18n.spaceAnd();
+          segment += this.i18n.spaceAnd();
         }
       }
+      ExpressionDescriptor.parseContext.segments[0] = segment;
+      ExpressionDescriptor.parseContext.segments[1] = segment;
+      description += segment;
     } else {
       //default time description
       let secondsDescription = this.getSecondsDescription();
@@ -204,6 +217,9 @@ export class ExpressionDescriptor {
       }
 
       description += hoursDescription;
+
+      ExpressionDescriptor.parseContext.segments[0] = minutesDescription;
+      ExpressionDescriptor.parseContext.segments[1] = hoursDescription;
     }
 
     return description;
@@ -564,7 +580,9 @@ export class ExpressionDescriptor {
     return description;
   }
 
+  static formatTimeContext = {minute: "", hour: ""};
   protected formatTime(hourExpression: string, minuteExpression: string, secondExpression: string) {
+    ExpressionDescriptor.formatTimeContext = {minute: "", hour: ""};
     let hour: number = parseInt(hourExpression);
 
     let period: string = "";
@@ -583,6 +601,8 @@ export class ExpressionDescriptor {
     if (secondExpression) {
       second = `:${("00" + secondExpression).substring(secondExpression.length)}`;
     }
+    ExpressionDescriptor.formatTimeContext.minute = ("00" + minute.toString()).substring(minute.toString().length);
+    ExpressionDescriptor.formatTimeContext.hour = ("00" + hour.toString()).substring(hour.toString().length);
 
     return `${("00" + hour.toString()).substring(hour.toString().length)}:${("00" + minute.toString()).substring(
       minute.toString().length
