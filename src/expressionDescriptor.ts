@@ -53,6 +53,36 @@ export class ExpressionDescriptor {
     return descripter.getFullDescription();
   }
 
+  static parseContext = {};
+
+  // toString + segment start/end + segment error
+  static parse(expression: string,
+               {
+                 throwExceptionOnParseError = true,
+                 verbose = false,
+                 dayOfWeekStartIndexZero = true,
+                 use24HourTimeFormat,
+                 locale = "en"
+               }: Options = {}): any {
+
+
+    let options = <Options>{
+      throwExceptionOnParseError: throwExceptionOnParseError,
+      verbose: verbose,
+      dayOfWeekStartIndexZero: dayOfWeekStartIndexZero,
+      use24HourTimeFormat: use24HourTimeFormat,
+      locale: locale
+    };
+
+    ExpressionDescriptor.parseContext = {
+      segments: [],
+      isSegmentError: [],
+    };
+
+    let descripter = new ExpressionDescriptor(expression, options);
+    return {description: descripter.getFullDescription(), ...ExpressionDescriptor.parseContext};
+  }
+
   static initialize(localesLoader: LocaleLoader) {
     ExpressionDescriptor.specialCharacters = ["/", "-", ",", "*"];
 
