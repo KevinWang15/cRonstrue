@@ -11,10 +11,15 @@ export declare class ExpressionDescriptor {
     options: Options;
     i18n: Locale;
     static toString(expression: string, {throwExceptionOnParseError, verbose, dayOfWeekStartIndexZero, use24HourTimeFormat, locale}?: Options): string;
+    static parseContext: {
+        segments: any[];
+        isSegmentError: any[];
+    };
+    static parse(expression: string, {throwExceptionOnParseError, verbose, dayOfWeekStartIndexZero, use24HourTimeFormat, locale}?: Options): any;
     static initialize(localesLoader: LocaleLoader): void;
     constructor(expression: string, options: Options);
     protected getFullDescription(): string;
-    protected getTimeOfDayDescription(): string;
+    protected getTimeOfDayDescription(descriptionBaseStart?: number): string;
     protected getSecondsDescription(): string;
     protected getMinutesDescription(): string;
     protected getHoursDescription(): string;
@@ -24,6 +29,10 @@ export declare class ExpressionDescriptor {
     protected getYearDescription(): string;
     protected getSegmentDescription(expression: string, allDescription: string, getSingleItemDescription: (t: string) => string, getIntervalDescriptionFormat: (t: string) => string, getBetweenDescriptionFormat: (t: string) => string, getDescriptionFormat: (t: string) => string): string;
     protected generateBetweenSegmentDescription(betweenExpression: string, getBetweenDescriptionFormat: (t: string) => string, getSingleItemDescription: (t: string) => string): string;
-    protected formatTime(hourExpression: string, minuteExpression: string, secondExpression: string): string;
+    static formatTimeContext: {
+        minute: any;
+        hour: any;
+    };
+    protected formatTime(hourExpression: string, minuteExpression: string, secondExpression: string, descriptionBaseStart?: number): string;
     protected transformVerbosity(description: string, useVerboseFormat: boolean): string;
 }

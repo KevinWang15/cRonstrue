@@ -79,6 +79,14 @@ return /******/ (function(modules) { // webpackBootstrap
 
 "use strict";
 
+var __assign = (this && this.__assign) || Object.assign || function(t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+        s = arguments[i];
+        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+            t[p] = s[p];
+    }
+    return t;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 var stringUtilities_1 = __webpack_require__(1);
 var cronParser_1 = __webpack_require__(2);
@@ -110,6 +118,34 @@ var ExpressionDescriptor = (function () {
         var descripter = new ExpressionDescriptor(expression, options);
         return descripter.getFullDescription();
     };
+    ExpressionDescriptor.parse = function (expression, _a) {
+        var _b = _a === void 0 ? {} : _a, _c = _b.throwExceptionOnParseError, throwExceptionOnParseError = _c === void 0 ? true : _c, _d = _b.verbose, verbose = _d === void 0 ? true : _d, _e = _b.dayOfWeekStartIndexZero, dayOfWeekStartIndexZero = _e === void 0 ? true : _e, _f = _b.use24HourTimeFormat, use24HourTimeFormat = _f === void 0 ? true : _f, _g = _b.locale, locale = _g === void 0 ? "en" : _g;
+        var options = {
+            throwExceptionOnParseError: throwExceptionOnParseError,
+            verbose: verbose,
+            dayOfWeekStartIndexZero: dayOfWeekStartIndexZero,
+            use24HourTimeFormat: use24HourTimeFormat,
+            locale: locale
+        };
+        ExpressionDescriptor.parseContext = {
+            segments: [],
+            isSegmentError: [],
+        };
+        var descripter = new ExpressionDescriptor(expression, options);
+        var fullDescription = descripter.getFullDescription();
+        ExpressionDescriptor.parseContext.segments.forEach(function (item) {
+            if (item && item.text) {
+                while (item.text.startsWith(',') || item.text.startsWith(' ')) {
+                    item.start++;
+                    item.text = item.text.substr(1);
+                }
+                while (item.text.endsWith(',') || item.text.endsWith(' ')) {
+                    item.text = item.text.substr(0, item.text.length - 1);
+                }
+            }
+        });
+        return __assign({ description: fullDescription }, ExpressionDescriptor.parseContext);
+    };
     ExpressionDescriptor.initialize = function (localesLoader) {
         ExpressionDescriptor.specialCharacters = ["/", "-", ",", "*"];
         localesLoader.load(ExpressionDescriptor.locales);
@@ -124,7 +160,23 @@ var ExpressionDescriptor = (function () {
             var monthDesc = this.getMonthDescription();
             var dayOfWeekDesc = this.getDayOfWeekDescription();
             var yearDesc = this.getYearDescription();
-            description += timeSegment + dayOfMonthDesc + dayOfWeekDesc + monthDesc + yearDesc;
+            description += timeSegment;
+            ExpressionDescriptor.parseContext.segments[2] = {
+                start: description.length,
+                text: dayOfMonthDesc
+            };
+            description += dayOfMonthDesc;
+            ExpressionDescriptor.parseContext.segments[4] = {
+                start: description.length,
+                text: dayOfWeekDesc
+            };
+            description += dayOfWeekDesc;
+            ExpressionDescriptor.parseContext.segments[3] = {
+                start: description.length,
+                text: monthDesc
+            };
+            description += monthDesc;
+            description += yearDesc;
             description = this.transformVerbosity(description, this.options.verbose);
             description = description.charAt(0).toLocaleUpperCase() + description.substr(1);
         }
@@ -138,7 +190,8 @@ var ExpressionDescriptor = (function () {
         }
         return description;
     };
-    ExpressionDescriptor.prototype.getTimeOfDayDescription = function () {
+    ExpressionDescriptor.prototype.getTimeOfDayDescription = function (descriptionBaseStart) {
+        if (descriptionBaseStart === void 0) { descriptionBaseStart = 0; }
         var secondsExpression = this.expressionParts[0];
         var minuteExpression = this.expressionParts[1];
         var hourExpression = this.expressionParts[2];
@@ -146,29 +199,37 @@ var ExpressionDescriptor = (function () {
         if (!stringUtilities_1.StringUtilities.containsAny(minuteExpression, ExpressionDescriptor.specialCharacters) &&
             !stringUtilities_1.StringUtilities.containsAny(hourExpression, ExpressionDescriptor.specialCharacters) &&
             !stringUtilities_1.StringUtilities.containsAny(secondsExpression, ExpressionDescriptor.specialCharacters)) {
-            description += this.i18n.atSpace() + this.formatTime(hourExpression, minuteExpression, secondsExpression);
+            description += this.i18n.atSpace() + this.formatTime(hourExpression, minuteExpression, secondsExpression, description.length);
+            ExpressionDescriptor.parseContext.segments[0] = ExpressionDescriptor.formatTimeContext.minute;
+            ExpressionDescriptor.parseContext.segments[1] = ExpressionDescriptor.formatTimeContext.hour;
         }
         else if (minuteExpression.indexOf("-") > -1 &&
             !(minuteExpression.indexOf(",") > -1) &&
             !stringUtilities_1.StringUtilities.containsAny(hourExpression, ExpressionDescriptor.specialCharacters)) {
             var minuteParts = minuteExpression.split("-");
-            description += stringUtilities_1.StringUtilities.format(this.i18n.everyMinutebetweenX0AndX1(), this.formatTime(hourExpression, minuteParts[0], ""), this.formatTime(hourExpression, minuteParts[1], ""));
+            var segment = stringUtilities_1.StringUtilities.format(this.i18n.everyMinutebetweenX0AndX1(), this.formatTime(hourExpression, minuteParts[0], ""), this.formatTime(hourExpression, minuteParts[1], ""));
+            ExpressionDescriptor.parseContext.segments[0] = { start: description.length, text: segment };
+            description += segment;
         }
         else if (hourExpression.indexOf(",") > -1 &&
             hourExpression.indexOf("-") == -1 && hourExpression.indexOf("/") == -1 &&
             !stringUtilities_1.StringUtilities.containsAny(minuteExpression, ExpressionDescriptor.specialCharacters)) {
             var hourParts = hourExpression.split(",");
             description += this.i18n.at();
+            var segment = "";
             for (var i = 0; i < hourParts.length; i++) {
-                description += " ";
-                description += this.formatTime(hourParts[i], minuteExpression, "");
+                segment += " ";
+                segment += this.formatTime(hourParts[i], minuteExpression, "");
                 if (i < hourParts.length - 2) {
-                    description += ",";
+                    segment += ",";
                 }
                 if (i == hourParts.length - 2) {
-                    description += this.i18n.spaceAnd();
+                    segment += this.i18n.spaceAnd();
                 }
             }
+            ExpressionDescriptor.parseContext.segments[0] = { start: description.length, text: segment };
+            ExpressionDescriptor.parseContext.segments[1] = { start: description.length, text: segment };
+            description += segment;
         }
         else {
             var secondsDescription = this.getSecondsDescription();
@@ -178,10 +239,18 @@ var ExpressionDescriptor = (function () {
             if (description.length > 0) {
                 description += ", ";
             }
+            ExpressionDescriptor.parseContext.segments[0] = {
+                start: description.length,
+                text: minutesDescription
+            };
             description += minutesDescription;
             if (description.length > 0) {
                 description += ", ";
             }
+            ExpressionDescriptor.parseContext.segments[1] = {
+                start: description.length,
+                text: hoursDescription
+            };
             description += hoursDescription;
         }
         return description;
@@ -436,7 +505,9 @@ var ExpressionDescriptor = (function () {
         description += stringUtilities_1.StringUtilities.format(betweenDescriptionFormat, betweenSegment1Description, betweenSegment2Description);
         return description;
     };
-    ExpressionDescriptor.prototype.formatTime = function (hourExpression, minuteExpression, secondExpression) {
+    ExpressionDescriptor.prototype.formatTime = function (hourExpression, minuteExpression, secondExpression, descriptionBaseStart) {
+        if (descriptionBaseStart === void 0) { descriptionBaseStart = 0; }
+        ExpressionDescriptor.formatTimeContext = { minute: null, hour: null };
         var hour = parseInt(hourExpression);
         var period = "";
         if (!this.options.use24HourTimeFormat) {
@@ -453,7 +524,23 @@ var ExpressionDescriptor = (function () {
         if (secondExpression) {
             second = ":" + ("00" + secondExpression).substring(secondExpression.length);
         }
-        return ("00" + hour.toString()).substring(hour.toString().length) + ":" + ("00" + minute.toString()).substring(minute.toString().length) + second + period;
+        var buffer = "";
+        var hourText = ("00" + hour.toString()).substring(hour.toString().length);
+        ExpressionDescriptor.formatTimeContext.hour = {
+            start: descriptionBaseStart + buffer.length,
+            text: hourText
+        };
+        buffer += hourText;
+        buffer += ":";
+        var minuteText = ("00" + minute.toString()).substring(minute.toString().length);
+        ExpressionDescriptor.formatTimeContext.minute = {
+            start: descriptionBaseStart + buffer.length,
+            text: minuteText
+        };
+        buffer += minuteText;
+        buffer += second;
+        buffer += period;
+        return buffer;
     };
     ExpressionDescriptor.prototype.transformVerbosity = function (description, useVerboseFormat) {
         if (!useVerboseFormat) {
@@ -464,6 +551,11 @@ var ExpressionDescriptor = (function () {
         return description;
     };
     ExpressionDescriptor.locales = {};
+    ExpressionDescriptor.parseContext = {
+        segments: [],
+        isSegmentError: []
+    };
+    ExpressionDescriptor.formatTimeContext = { minute: null, hour: null };
     return ExpressionDescriptor;
 }());
 exports.ExpressionDescriptor = ExpressionDescriptor;
