@@ -83,7 +83,20 @@ export class ExpressionDescriptor {
     };
 
     let descripter = new ExpressionDescriptor(expression, options);
-    return {description: descripter.getFullDescription(), ...ExpressionDescriptor.parseContext};
+    // trim segments
+    let fullDescription = descripter.getFullDescription();
+    ExpressionDescriptor.parseContext.segments.forEach(item => {
+      if (item && item.text) {
+        while (item.text.startsWith(',') || item.text.startsWith(' ')) {
+          item.start++;
+          item.text = item.text.substr(1);
+        }
+        while (item.text.endsWith(',') || item.text.endsWith(' ')) {
+          item.text = item.text.substr(0, item.text.length - 1);
+        }
+      }
+    });
+    return {description: fullDescription, ...ExpressionDescriptor.parseContext};
   }
 
   static initialize(localesLoader: LocaleLoader) {
