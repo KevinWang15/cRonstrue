@@ -182,7 +182,8 @@ export class ExpressionDescriptor {
       !StringUtilities.containsAny(secondsExpression, ExpressionDescriptor.specialCharacters)
     ) {
       //specific time of day (i.e. 10 14)
-      description += this.i18n.atSpace() + this.formatTime(hourExpression, minuteExpression, secondsExpression, description.length);
+      description += this.i18n.atSpace();
+      description += this.formatTime(hourExpression, minuteExpression, secondsExpression, description.length);
       ExpressionDescriptor.parseContext.segments[0] = ExpressionDescriptor.formatTimeContext.minute;
       ExpressionDescriptor.parseContext.segments[1] = ExpressionDescriptor.formatTimeContext.hour;
     } else if (
